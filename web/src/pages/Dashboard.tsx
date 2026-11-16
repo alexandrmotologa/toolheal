@@ -10,15 +10,19 @@ import { DriftHeatmap } from '../components/DriftHeatmap';
 import { LiveInvocationLog } from '../components/LiveInvocationLog';
 import { ToolSandbox } from '../components/ToolSandbox';
 import { ToolRegistryView } from '../components/ToolRegistryView';
+import { SuggestedPatchesWidget } from '../components/SuggestedPatchesWidget';
+import { BenchmarkRunnerModal } from '../components/BenchmarkRunnerModal';
 import {
   Zap,
   Activity,
   Layers,
   Sparkles,
   BookOpen,
-  TrendingDown,
+  DollarSign,
   Clock,
   RefreshCw,
+  Play,
+  Lightbulb,
 } from 'lucide-react';
 
 export const Dashboard: React.FC = () => {
@@ -34,6 +38,7 @@ export const Dashboard: React.FC = () => {
   const [drifts, setDrifts] = useState<DriftItem[]>([]);
   const [tools, setTools] = useState<ToolDefinition[]>([]);
   const [isStreaming, setIsStreaming] = useState(false);
+  const [isBenchmarkModalOpen, setIsBenchmarkModalOpen] = useState(false);
 
   // Fetch initial telemetry and catalog
   const fetchData = async () => {
@@ -104,6 +109,11 @@ export const Dashboard: React.FC = () => {
     };
   }, []);
 
+  // ROI calculations
+  const dollarsSaved = (metrics.tokens_saved * 0.000003).toFixed(2);
+  const secondsSaved = Math.round((metrics.tokens_saved / 2400) * 4.2);
+  const minutesSaved = (secondsSaved / 60).toFixed(1);
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
       {/* Top Header */}
@@ -121,14 +131,21 @@ export const Dashboard: React.FC = () => {
                 </span>
               </h1>
               <p className="text-xs text-slate-400">
-                Autonomous Self-Healing Tool Calling & Schema Reconciliation Middleware
+                Autonomous Self-Healing Tool Calling &amp; Schema Reconciliation Middleware
               </p>
             </div>
           </div>
         </div>
 
         {/* Global Controls & Status */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
+          <button
+            onClick={() => setIsBenchmarkModalOpen(true)}
+            className="px-3 py-1.5 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors"
+          >
+            <Play className="w-3.5 h-3.5 fill-current" /> Run Benchmark Suite
+          </button>
+
           <button
             onClick={fetchData}
             className="p-2 text-slate-400 hover:text-white bg-slate-900 border border-slate-800 rounded-lg hover:border-slate-700 transition-colors"
@@ -139,7 +156,7 @@ export const Dashboard: React.FC = () => {
 
           <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-xs font-mono">
             <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-            <span className="text-slate-300">Go Daemon Active (:7171)</span>
+            <span className="text-slate-300">Daemon Active (:7171)</span>
           </div>
         </div>
       </div>
@@ -163,19 +180,22 @@ export const Dashboard: React.FC = () => {
           </p>
         </div>
 
-        {/* Metric 2: Estimated Tokens Saved */}
+        {/* Metric 2: Financial ROI & Tokens Saved */}
         <div className="bg-[#101726] border border-slate-800 rounded-xl p-5 shadow-lg relative overflow-hidden">
           <div className="flex items-center justify-between text-slate-400 text-xs font-medium">
-            <span>TOKENS SAVED</span>
-            <TrendingDown className="w-4 h-4 text-sky-400" />
+            <span>FINANCIAL ROI SAVINGS</span>
+            <DollarSign className="w-4 h-4 text-emerald-400" />
           </div>
           <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-3xl font-extrabold font-mono text-sky-400">
-              {metrics.tokens_saved.toLocaleString()}
+            <span className="text-3xl font-extrabold font-mono text-emerald-400">
+              ${dollarsSaved}
+            </span>
+            <span className="text-[11px] text-slate-400 font-mono">
+              ~{minutesSaved}m wait avoided
             </span>
           </div>
-          <p className="text-[11px] text-slate-500 mt-1">
-            Eliminated ~{metrics.healed_invocations} LLM retry loops
+          <p className="text-[11px] text-slate-500 mt-1 font-mono">
+            {metrics.tokens_saved.toLocaleString()} prompt tokens saved
           </p>
         </div>
 
@@ -183,17 +203,17 @@ export const Dashboard: React.FC = () => {
         <div className="bg-[#101726] border border-slate-800 rounded-xl p-5 shadow-lg relative overflow-hidden">
           <div className="flex items-center justify-between text-slate-400 text-xs font-medium">
             <span>AVG RECONCILIATION TIME</span>
-            <Clock className="w-4 h-4 text-purple-400" />
+            <Clock className="w-4 h-4 text-sky-400" />
           </div>
           <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-3xl font-extrabold font-mono text-purple-400">
+            <span className="text-3xl font-extrabold font-mono text-sky-400">
               {metrics.average_latency_us < 1000
                 ? `${metrics.average_latency_us} µs`
                 : `${(metrics.average_latency_us / 1000).toFixed(2)} ms`}
             </span>
             <span className="text-[11px] text-slate-400 font-mono">&lt; 2.0 ms</span>
           </div>
-          <p className="text-[11px] text-slate-500 mt-1">Levenshtein + case fold latency</p>
+          <p className="text-[11px] text-slate-500 mt-1">O(1) fast-cache + fuzzy Levenshtein</p>
         </div>
 
         {/* Metric 4: Registered Tools */}
@@ -212,12 +232,15 @@ export const Dashboard: React.FC = () => {
         </div>
       </div>
 
+      {/* Suggested Schema Patches Notification Widget */}
+      <SuggestedPatchesWidget onPatchApplied={fetchData} />
+
       {/* Navigation Tabs */}
       <div className="flex items-center gap-2 border-b border-slate-800 pb-1">
         {[
           { id: 'stream', label: 'Live Telemetry & Invocations', icon: Activity },
           { id: 'sandbox', label: 'Interactive Sandbox', icon: Sparkles },
-          { id: 'drifts', label: 'Schema Drift Analytics', icon: Zap },
+          { id: 'drifts', label: 'Schema Drift Analytics', icon: Lightbulb },
           { id: 'catalog', label: 'Tool Schema Catalog', icon: BookOpen },
         ].map((tab) => {
           const Icon = tab.icon;
@@ -274,8 +297,17 @@ export const Dashboard: React.FC = () => {
 
       {/* Tab 4: Tool Schema Catalog */}
       {activeTab === 'catalog' && (
-        <ToolRegistryView tools={tools} />
+        <ToolRegistryView tools={tools} onToolsReloaded={fetchData} />
       )}
+
+      {/* Live Benchmark Suite Modal */}
+      <BenchmarkRunnerModal
+        isOpen={isBenchmarkModalOpen}
+        onClose={() => {
+          setIsBenchmarkModalOpen(false);
+          fetchData();
+        }}
+      />
     </div>
   );
 };

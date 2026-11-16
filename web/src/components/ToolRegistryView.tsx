@@ -1,15 +1,19 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { ToolDefinition } from '../types';
-import { BookOpen, Key, Tag } from 'lucide-react';
+import { BookOpen, Key, Tag, Download } from 'lucide-react';
+import { OpenAPIImportModal } from './OpenAPIImportModal';
 
 interface ToolRegistryViewProps {
   tools: ToolDefinition[];
+  onToolsReloaded?: () => void;
 }
 
-export const ToolRegistryView: React.FC<ToolRegistryViewProps> = ({ tools }) => {
+export const ToolRegistryView: React.FC<ToolRegistryViewProps> = ({ tools, onToolsReloaded }) => {
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+
   return (
     <div className="bg-[#101726] border border-slate-800 rounded-xl p-6 shadow-xl space-y-6">
-      <div className="flex items-center justify-between border-b border-slate-800 pb-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800 pb-4">
         <div>
           <h2 className="text-base font-semibold text-white flex items-center gap-2">
             <BookOpen className="w-5 h-5 text-sky-400" />
@@ -19,10 +23,26 @@ export const ToolRegistryView: React.FC<ToolRegistryViewProps> = ({ tools }) => 
             Registered tools, parameter constraints, enum sets, and semantic alias mappings.
           </p>
         </div>
-        <span className="text-xs font-mono bg-sky-500/10 text-sky-400 border border-sky-500/20 px-2.5 py-1 rounded-full">
-          {tools.length} Tools Registered
-        </span>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setIsImportModalOpen(true)}
+            className="px-3 py-1.5 bg-sky-500/20 hover:bg-sky-500/30 text-sky-300 border border-sky-500/40 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors"
+          >
+            <Download className="w-3.5 h-3.5" /> Import OpenAPI / Swagger
+          </button>
+          <span className="text-xs font-mono bg-slate-900 text-slate-300 border border-slate-800 px-2.5 py-1.5 rounded-lg">
+            {tools.length} Tools
+          </span>
+        </div>
       </div>
+
+      <OpenAPIImportModal
+        isOpen={isImportModalOpen}
+        onClose={() => setIsImportModalOpen(false)}
+        onImportSuccess={() => {
+          if (onToolsReloaded) onToolsReloaded();
+        }}
+      />
 
       <div className="space-y-6">
         {tools.map((tool) => {

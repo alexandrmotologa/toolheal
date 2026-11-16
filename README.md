@@ -45,7 +45,15 @@ You can pipe JSON payloads directly into `toolheal` without starting a server:
 echo '{"tool":"create_user","arguments":{"user_id":"u1","email":"alex@test.com","role":"admin"}}' | ./toolheal.exe heal
 ```
 
-### 4. Running Benchmarks
+### 4. Transparent MCP Stdio Wrapper (`mcp-wrap`)
+
+Wrap any existing stdio MCP server for Claude Code, Cursor, or custom agents with automatic parameter healing:
+
+```bash
+toolheal mcp-wrap npx -y @modelcontextprotocol/server-github
+```
+
+### 5. Running Benchmarks
 
 Run the benchmark suite against real-world failing agent payloads:
 

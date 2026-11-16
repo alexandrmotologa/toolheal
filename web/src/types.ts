@@ -56,3 +56,23 @@ export interface ToolDefinition {
     properties: Record<string, PropertySchema>;
   };
 }
+
+export interface SuggestedPatch {
+  tool_name: string;
+  original_key: string;
+  canonical_key: string;
+  fix_type: string;
+  confidence: number;
+  hits: number;
+}
+
+export interface BenchmarkResult {
+  total_cases: number;
+  healed_cases: number;
+  valid_cases: number;
+  recovery_rate: number;
+  avg_latency_us: number;
+  tokens_saved: number;
+  dollars_saved: number;
+  fix_breakdown: Record<string, number>;
+}

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/alexandrmotologa/toolheal/internal/config"
@@ -16,7 +17,7 @@ type ParameterDiff struct {
 	HealedKey     string  `json:"healed_key"`
 	OriginalValue any     `json:"original_value"`
 	HealedValue   any     `json:"healed_value"`
-	FixType       string  `json:"fix_type"` // KEY_CASE, KEY_ALIAS, KEY_FUZZY, TYPE_COERCE, ENUM_SNAP, DATE_NORMALIZE, DEFAULT_INJECT, ENVELOPE_UNWRAP
+	FixType       string  `json:"fix_type"` // KEY_CASE, KEY_ALIAS, KEY_FUZZY, TYPE_COERCE, ENUM_SNAP, DATE_NORMALIZE, DEFAULT_INJECT, ENVELOPE_UNWRAP, NESTED_OBJECT
 	Description   string  `json:"description"`
 	Confidence    float64 `json:"confidence"`
 }
@@ -33,9 +34,80 @@ type ReconciliationReport struct {
 	LatencyUs         int64           `json:"latency_us"`
 }
 
+// CachedResolution stores pre-computed key mappings for fast-path O(1) resolution.
+type CachedResolution struct {
+	ToolName     string  `json:"tool_name"`
+	OriginalKey  string  `json:"original_key"`
+	CanonicalKey string  `json:"canonical_key"`
+	FixType      string  `json:"fix_type"`
+	Confidence   float64 `json:"confidence"`
+	Hits         int64   `json:"hits"`
+}
+
+// FastPathCache accelerates repeated parameter resolutions to sub-microsecond O(1) speed.
+type FastPathCache struct {
+	mu      sync.RWMutex
+	entries map[string]*CachedResolution
+}
+
+// NewFastPathCache initializes the fast-path memory cache.
+func NewFastPathCache() *FastPathCache {
+	return &FastPathCache{
+		entries: make(map[string]*CachedResolution),
+	}
+}
+
+// Get retrieves a pre-computed key resolution if available.
+func (c *FastPathCache) Get(toolName, originalKey string) (*CachedResolution, bool) {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+
+	lookup := toolName + ":" + originalKey
+	res, ok := c.entries[lookup]
+	if ok {
+		res.Hits++
+		return res, true
+	}
+	return nil, false
+}
+
+// Set stores a newly computed resolution.
+func (c *FastPathCache) Set(toolName, originalKey, canonicalKey, fixType string, confidence float64) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	lookup := toolName + ":" + originalKey
+	c.entries[lookup] = &CachedResolution{
+		ToolName:     toolName,
+		OriginalKey:  originalKey,
+		CanonicalKey: canonicalKey,
+		FixType:      fixType,
+		Confidence:   confidence,
+		Hits:         1,
+	}
+}
+
+// ListSuggestedPatches returns resolutions with high hit counts suitable for schema updates.
+func (c *FastPathCache) ListSuggestedPatches(minHits int64) []*CachedResolution {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+
+	out := make([]*CachedResolution, 0)
+	for _, res := range c.entries {
+		if res.Hits >= minHits && res.OriginalKey != res.CanonicalKey {
+			out = append(out, res)
+		}
+	}
+	sort.Slice(out, func(i, j int) bool {
+		return out[i].Hits > out[j].Hits
+	})
+	return out
+}
+
 // Engine coordinates the multi-stage fuzzy schema reconciliation pipeline.
 type Engine struct {
-	config *config.ReconciliationConfig
+	config    *config.ReconciliationConfig
+	fastCache *FastPathCache
 }
 
 // NewEngine creates a new reconciliation engine instance.
@@ -43,7 +115,15 @@ func NewEngine(cfg *config.ReconciliationConfig) *Engine {
 	if cfg == nil {
 		cfg = &config.DefaultConfig().Reconciliation
 	}
-	return &Engine{config: cfg}
+	return &Engine{
+		config:    cfg,
+		fastCache: NewFastPathCache(),
+	}
+}
+
+// FastCache returns the engine's fast-path resolution cache.
+func (e *Engine) FastCache() *FastPathCache {
+	return e.fastCache
 }
 
 // Reconcile executes the healing pipeline on raw tool arguments against a tool schema.
@@ -76,90 +156,139 @@ func (e *Engine) Reconcile(toolName string, rawArgs any, schema *config.ToolDefi
 		inputMap = e.unwrapEnvelope(inputMap, schema, report)
 	}
 
-	canonicalProps := schema.Parameters.Properties
+	// 3. Reconcile root level properties recursively
+	healedMap, diffs, valid, missing := e.reconcileProperties(toolName, "", inputMap, schema.Parameters.Properties, schema.Parameters.Required)
+
+	report.HealedArguments = healedMap
+	report.Diffs = append(report.Diffs, diffs...)
+	if len(diffs) > 0 {
+		report.Healed = true
+	}
+	report.Valid = valid
+	report.MissingRequired = missing
+	report.LatencyUs = time.Since(start).Microseconds()
+
+	return report
+}
+
+// reconcileProperties performs recursive reconciliation over a map of properties.
+func (e *Engine) reconcileProperties(
+	toolName string,
+	prefix string,
+	inputMap map[string]any,
+	canonicalProps map[string]config.PropertySchema,
+	requiredKeys []string,
+) (map[string]any, []ParameterDiff, bool, []string) {
+	diffs := make([]ParameterDiff, 0)
 	canonicalKeys := make([]string, 0, len(canonicalProps))
 	for k := range canonicalProps {
 		canonicalKeys = append(canonicalKeys, k)
 	}
 	sort.Strings(canonicalKeys)
 
-	matchedCanonical := make(map[string]bool)
 	healedMap := make(map[string]any)
+	matchedCanonical := make(map[string]bool)
 
-	// 3. Match each input key to a canonical property
+	// A. Match and heal provided parameters
 	for inKey, inVal := range inputMap {
-		canonicalKey, fixType, conf, matched := e.resolveKey(inKey, canonicalKeys, canonicalProps)
+		canonicalKey, fixType, conf, matched := e.resolveKeyCached(toolName, inKey, canonicalKeys, canonicalProps)
+
+		fullInKey := inKey
+		fullCanKey := canonicalKey
+		if prefix != "" {
+			fullInKey = prefix + "." + inKey
+			fullCanKey = prefix + "." + canonicalKey
+		}
 
 		if matched {
 			matchedCanonical[canonicalKey] = true
 			prop := canonicalProps[canonicalKey]
 
-			// Coerce value according to schema property rules
-			healedVal, valDiffs := e.healValue(inVal, canonicalKey, prop)
+			// Coerce and recursively heal value
+			healedVal, valDiffs := e.healValueRecursive(toolName, fullCanKey, inVal, prop)
 
 			healedMap[canonicalKey] = healedVal
 
-			// If key changed, record diff
+			// If key renamed, record diff
 			if inKey != canonicalKey {
-				report.Diffs = append(report.Diffs, ParameterDiff{
-					OriginalKey:   inKey,
-					HealedKey:     canonicalKey,
+				diffs = append(diffs, ParameterDiff{
+					OriginalKey:   fullInKey,
+					HealedKey:     fullCanKey,
 					OriginalValue: inVal,
 					HealedValue:   healedVal,
 					FixType:       fixType,
-					Description:   fmt.Sprintf("Renamed hallucinated parameter '%s' to '%s'", inKey, canonicalKey),
+					Description:   fmt.Sprintf("Renamed hallucinated parameter '%s' to '%s'", fullInKey, fullCanKey),
 					Confidence:    conf,
 				})
-				report.Healed = true
 			}
 
-			// Add value coercion diffs
-			for _, vd := range valDiffs {
-				vd.OriginalKey = inKey
-				vd.HealedKey = canonicalKey
-				report.Diffs = append(report.Diffs, vd)
-				report.Healed = true
-			}
+			// Add value coercion & nested diffs
+			diffs = append(diffs, valDiffs...)
 		} else {
 			// Unrecognized parameter passed through unchanged
 			healedMap[inKey] = inVal
 		}
 	}
 
-	// 4. Inject default values for missing required or optional parameters
+	// B. Default value injection
 	if e.config.EnableDefaultInjection {
 		for cKey, prop := range canonicalProps {
 			if _, exists := healedMap[cKey]; !exists {
 				if prop.Default != nil {
+					fullCKey := cKey
+					if prefix != "" {
+						fullCKey = prefix + "." + cKey
+					}
 					healedMap[cKey] = prop.Default
-					report.Diffs = append(report.Diffs, ParameterDiff{
-						OriginalKey:   cKey,
-						HealedKey:     cKey,
+					diffs = append(diffs, ParameterDiff{
+						OriginalKey:   fullCKey,
+						HealedKey:     fullCKey,
 						OriginalValue: nil,
 						HealedValue:   prop.Default,
 						FixType:       "DEFAULT_INJECT",
-						Description:   fmt.Sprintf("Injected default value for missing property '%s'", cKey),
+						Description:   fmt.Sprintf("Injected default value for missing property '%s'", fullCKey),
 						Confidence:    1.0,
 					})
-					report.Healed = true
 				}
 			}
 		}
 	}
 
-	// 5. Check missing required properties
+	// C. Required check
+	isValid := true
 	missing := make([]string, 0)
-	for _, reqKey := range schema.Parameters.Required {
+	for _, reqKey := range requiredKeys {
 		if _, ok := healedMap[reqKey]; !ok {
 			missing = append(missing, reqKey)
-			report.Valid = false
+			isValid = false
 		}
 	}
-	report.MissingRequired = missing
-	report.HealedArguments = healedMap
-	report.LatencyUs = time.Since(start).Microseconds()
 
-	return report
+	return healedMap, diffs, isValid, missing
+}
+
+// resolveKeyCached checks the fast-path cache before executing full resolution algorithms.
+func (e *Engine) resolveKeyCached(
+	toolName, inKey string,
+	canonicalKeys []string,
+	props map[string]config.PropertySchema,
+) (string, string, float64, bool) {
+	// 1. Check FastPathCache
+	if e.fastCache != nil {
+		if cached, ok := e.fastCache.Get(toolName, inKey); ok {
+			return cached.CanonicalKey, cached.FixType, cached.Confidence, true
+		}
+	}
+
+	// 2. Full resolution pipeline
+	cKey, fixType, conf, matched := e.resolveKey(inKey, canonicalKeys, props)
+
+	// 3. Store in FastPathCache for subsequent calls
+	if matched && e.fastCache != nil {
+		e.fastCache.Set(toolName, inKey, cKey, fixType, conf)
+	}
+
+	return cKey, fixType, conf, matched
 }
 
 // resolveKey finds the canonical schema key for an input parameter using layered heuristics.
@@ -200,8 +329,8 @@ func (e *Engine) resolveKey(inKey string, canonicalKeys []string, props map[stri
 	return inKey, "", 0.0, false
 }
 
-// healValue validates and repairs parameter types, enums, and timestamps.
-func (e *Engine) healValue(val any, key string, prop config.PropertySchema) (any, []ParameterDiff) {
+// healValueRecursive validates and repairs parameter types, enums, dates, and nested structures.
+func (e *Engine) healValueRecursive(toolName, fullKey string, val any, prop config.PropertySchema) (any, []ParameterDiff) {
 	diffs := make([]ParameterDiff, 0)
 	current := val
 
@@ -210,22 +339,56 @@ func (e *Engine) healValue(val any, key string, prop config.PropertySchema) (any
 		res := CoerceValue(current, prop)
 		if res.Changed {
 			diffs = append(diffs, ParameterDiff{
+				OriginalKey:   fullKey,
+				HealedKey:     fullKey,
 				OriginalValue: current,
 				HealedValue:   res.Value,
 				FixType:       "TYPE_COERCE",
-				Description:   fmt.Sprintf("Coerced parameter '%s' via %s", key, res.CoercionType),
+				Description:   fmt.Sprintf("Coerced parameter '%s' via %s", fullKey, res.CoercionType),
 				Confidence:    0.95,
 			})
 			current = res.Value
 		}
 	}
 
-	// 2. Strict enum snapping
+	// 2. Recursive Nested Object Healing
+	if prop.Type == "object" && len(prop.Properties) > 0 {
+		if objMap, ok := current.(map[string]any); ok {
+			healedNested, nestedDiffs, _, _ := e.reconcileProperties(toolName, fullKey, objMap, prop.Properties, prop.Required)
+			diffs = append(diffs, nestedDiffs...)
+			current = healedNested
+		}
+	}
+
+	// 3. Recursive Array of Objects Healing
+	if prop.Type == "array" && prop.Items != nil {
+		if slice, ok := current.([]any); ok {
+			// If array of objects
+			if prop.Items.Type == "object" && len(prop.Items.Properties) > 0 {
+				newSlice := make([]any, len(slice))
+				for i, item := range slice {
+					if itemMap, isMap := item.(map[string]any); isMap {
+						itemPrefix := fmt.Sprintf("%s[%d]", fullKey, i)
+						healedItem, itemDiffs, _, _ := e.reconcileProperties(toolName, itemPrefix, itemMap, prop.Items.Properties, prop.Items.Required)
+						diffs = append(diffs, itemDiffs...)
+						newSlice[i] = healedItem
+					} else {
+						newSlice[i] = item
+					}
+				}
+				current = newSlice
+			}
+		}
+	}
+
+	// 4. Strict enum snapping
 	if e.config.EnableEnumSnapping && len(prop.Enum) > 0 {
 		if strVal, isStr := current.(string); isStr {
 			snapRes := SnapEnum(strVal, prop.Enum, e.config.JaroWinklerThreshold)
 			if snapRes.Snapped {
 				diffs = append(diffs, ParameterDiff{
+					OriginalKey:   fullKey,
+					HealedKey:     fullKey,
 					OriginalValue: current,
 					HealedValue:   snapRes.Value,
 					FixType:       "ENUM_SNAP",
@@ -237,11 +400,13 @@ func (e *Engine) healValue(val any, key string, prop config.PropertySchema) (any
 		}
 	}
 
-	// 3. Temporal / Date normalization
+	// 5. Temporal / Date normalization
 	if e.config.EnableDateNormalization && (prop.Format == "date" || prop.Format == "date-time") {
 		dateRes := NormalizeDate(current, prop.Format)
 		if dateRes.Normalized && dateRes.Value != current {
 			diffs = append(diffs, ParameterDiff{
+				OriginalKey:   fullKey,
+				HealedKey:     fullKey,
 				OriginalValue: current,
 				HealedValue:   dateRes.Value,
 				FixType:       "DATE_NORMALIZE",

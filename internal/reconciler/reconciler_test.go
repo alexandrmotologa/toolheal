@@ -188,3 +188,104 @@ func TestEngineReconciliation(t *testing.T) {
 		t.Errorf("latency %d us exceeded 2000 us limit", report.LatencyUs)
 	}
 }
+
+func TestRecursiveNestedHealingAndFastPathCache(t *testing.T) {
+	// Define a tool with nested object and array of objects
+	nestedTool := &config.ToolDefinition{
+		Name: "complex_query",
+		Parameters: config.ToolParameters{
+			Type: "object",
+			Properties: map[string]config.PropertySchema{
+				"filterSettings": {
+					Type: "object",
+					Properties: map[string]config.PropertySchema{
+						"startDate": {Type: "string", Format: "date"},
+						"status":    {Type: "string", Enum: []string{"ACTIVE", "ARCHIVED"}},
+					},
+					Required: []string{"startDate"},
+				},
+				"userList": {
+					Type: "array",
+					Items: &config.PropertySchema{
+						Type: "object",
+						Properties: map[string]config.PropertySchema{
+							"userId":   {Type: "string"},
+							"isActive": {Type: "boolean"},
+						},
+						Required: []string{"userId"},
+					},
+				},
+			},
+			Required: []string{"filterSettings"},
+		},
+	}
+
+	engine := NewEngine(nil)
+
+	// Hallucinated payload:
+	// - filter_settings instead of filterSettings
+	// - start_date instead of startDate with DD/MM/YYYY
+	// - status lowercase 'active'
+	// - user_list instead of userList
+	// - items inside have user_id instead of userId, active string 'true'
+	input := map[string]any{
+		"filter_settings": map[string]any{
+			"start_date": "15/11/2026",
+			"status":     "active",
+		},
+		"user_list": []any{
+			map[string]any{
+				"user_id": "usr_100",
+				"active":  "true",
+			},
+		},
+	}
+
+	// First pass: populates FastPathCache
+	report := engine.Reconcile("complex_query", input, nestedTool)
+	if !report.Valid {
+		t.Fatalf("expected report to be valid, missing: %v", report.MissingRequired)
+	}
+
+	filter, ok := report.HealedArguments["filterSettings"].(map[string]any)
+	if !ok {
+		t.Fatalf("expected filterSettings object, got %T", report.HealedArguments["filterSettings"])
+	}
+	if filter["startDate"] != "2026-11-15" {
+		t.Errorf("expected startDate=2026-11-15, got %v", filter["startDate"])
+	}
+	if filter["status"] != "ACTIVE" {
+		t.Errorf("expected status=ACTIVE, got %v", filter["status"])
+	}
+
+	users, ok := report.HealedArguments["userList"].([]any)
+	if !ok || len(users) != 1 {
+		t.Fatalf("expected userList slice with 1 item, got %v", report.HealedArguments["userList"])
+	}
+	user0, ok := users[0].(map[string]any)
+	if !ok {
+		t.Fatalf("expected user object, got %T", users[0])
+	}
+	if user0["userId"] != "usr_100" {
+		t.Errorf("expected userId=usr_100, got %v", user0["userId"])
+	}
+	if user0["isActive"] != true {
+		t.Errorf("expected isActive=true, got %v", user0["isActive"])
+	}
+
+	// Verify FastPathCache recorded hits on subsequent run
+	report2 := engine.Reconcile("complex_query", input, nestedTool)
+	if !report2.Valid {
+		t.Fatalf("expected report2 to be valid")
+	}
+
+	cached, found := engine.FastCache().Get("complex_query", "filter_settings")
+	if !found || cached.Hits < 2 {
+		t.Errorf("expected FastPathCache hits >= 2 for filter_settings, got %+v", cached)
+	}
+
+	patches := engine.FastCache().ListSuggestedPatches(1)
+	if len(patches) < 1 {
+		t.Errorf("expected suggested patches, got %d", len(patches))
+	}
+}

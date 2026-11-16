@@ -48,6 +48,8 @@ func main() {
 		runHeal(os.Args[2:])
 	case "bench":
 		runBench(os.Args[2:])
+	case "mcp-wrap":
+		runMCPWrap(os.Args[2:])
 	case "version", "--version", "-v":
 		fmt.Println("toolheal v1.0.0 (Go runtime, modernc.org/sqlite, React 19)")
 	case "help", "--help", "-h":
@@ -61,7 +63,7 @@ func main() {
 
 func printUsage() {
 	fmt.Print(banner)
-	fmt.Println(`
+	fmt.Print(`
 Usage:
   toolheal <command> [flags]
 
@@ -70,6 +72,7 @@ Available Commands:
   proxy       Run in transparent proxy mode routing healed calls to upstream
   heal        Heal a tool invocation payload via STDIN or CLI argument
   bench       Benchmark healing accuracy and latency on test failure suites
+  mcp-wrap    Wrap any stdio MCP server command with transparent tool healing
   version     Display version information
 
 Flags for 'serve':
@@ -335,6 +338,38 @@ func runBench(args []string) {
 		fmt.Println("SLA TARGET PASSED: Recovery Rate >= 85% and Latency < 2.0ms.")
 	} else {
 		fmt.Println("SLA TARGET FAILED: Recovery Rate or Latency did not meet specifications.")
+		os.Exit(1)
+	}
+}
+
+func runMCPWrap(args []string) {
+	if len(args) == 0 {
+		fmt.Fprintln(os.Stderr, "Usage: toolheal mcp-wrap [--schemas path] <command> [args...]")
+		os.Exit(1)
+	}
+
+	schemasPath := "examples/tool_definitions.json"
+	cmdIndex := 0
+
+	if args[0] == "--schemas" && len(args) > 2 {
+		schemasPath = args[1]
+		cmdIndex = 2
+	}
+
+	cmdArgs := args[cmdIndex:]
+	if len(cmdArgs) == 0 {
+		fmt.Fprintln(os.Stderr, "Error: no command provided to wrap")
+		os.Exit(1)
+	}
+
+	catalog := config.NewCatalog()
+	_ = catalog.LoadFromFile(schemasPath)
+	engine := reconciler.NewEngine(nil)
+
+	bridge := middleware.NewMCPWrapBridge(catalog, engine)
+	err := bridge.Run(cmdArgs[0], cmdArgs[1:])
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "[toolheal] mcp-wrap process error: %v\n", err)
 		os.Exit(1)
 	}
 }

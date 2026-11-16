@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { InvocationRecord } from '../types';
 import { ParameterDiff } from './ParameterDiff';
-import { Activity, Clock, ShieldCheck, ChevronDown, ChevronUp, Radio } from 'lucide-react';
+import { Activity, Clock, ShieldCheck, ChevronDown, ChevronUp, Radio, Download } from 'lucide-react';
 
 interface LiveInvocationLogProps {
   invocations: InvocationRecord[];
@@ -46,21 +46,44 @@ export const LiveInvocationLog: React.FC<LiveInvocationLogProps> = ({
           </span>
         </div>
 
-        {/* Filter buttons */}
-        <div className="flex items-center gap-1.5 text-xs">
-          {['all', 'healed', 'fallback'].map((s) => (
-            <button
-              key={s}
-              onClick={() => setFilterStatus(s)}
-              className={`px-2.5 py-1 rounded font-medium capitalize transition-colors ${
-                filterStatus === s
-                  ? 'bg-sky-500 text-white shadow-sm'
-                  : 'bg-slate-900 text-slate-400 hover:text-slate-200 border border-slate-800'
-              }`}
+        {/* Filter and Export buttons */}
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex items-center gap-1.5 text-xs">
+            {['all', 'healed', 'fallback'].map((s) => (
+              <button
+                key={s}
+                onClick={() => setFilterStatus(s)}
+                className={`px-2.5 py-1 rounded font-medium capitalize transition-colors ${
+                  filterStatus === s
+                    ? 'bg-sky-500 text-white shadow-sm'
+                    : 'bg-slate-900 text-slate-400 hover:text-slate-200 border border-slate-800'
+                }`}
+              >
+                {s}
+              </button>
+            ))}
+          </div>
+
+          <div className="h-4 w-px bg-slate-800 hidden sm:block" />
+
+          <div className="flex items-center gap-1.5 text-xs font-mono">
+            <a
+              href="/api/invocations/export?format=csv"
+              download="toolheal_invocations.csv"
+              className="px-2 py-1 rounded bg-slate-900 border border-slate-800 hover:border-slate-700 text-slate-400 hover:text-white flex items-center gap-1"
+              title="Download CSV Audit Log"
             >
-              {s}
-            </button>
-          ))}
+              <Download className="w-3 h-3 text-sky-400" /> CSV
+            </a>
+            <a
+              href="/api/invocations/export?format=json"
+              download="toolheal_invocations.json"
+              className="px-2 py-1 rounded bg-slate-900 border border-slate-800 hover:border-slate-700 text-slate-400 hover:text-white flex items-center gap-1"
+              title="Download JSON Audit Log"
+            >
+              <Download className="w-3 h-3 text-emerald-400" /> JSON
+            </a>
+          </div>
         </div>
       </div>
 

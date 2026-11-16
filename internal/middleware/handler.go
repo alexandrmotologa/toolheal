@@ -77,6 +77,21 @@ func NewInterceptor(
 	}
 }
 
+// Engine returns the underlying reconciliation engine.
+func (h *Interceptor) Engine() *reconciler.Engine {
+	return h.engine
+}
+
+// Catalog returns the tool schema catalog.
+func (h *Interceptor) Catalog() *config.Catalog {
+	return h.catalog
+}
+
+// Store returns the telemetry SQLite store.
+func (h *Interceptor) Store() *telemetry.Store {
+	return h.store
+}
+
 // HandleExecute handles POST /v1/tools/execute, reconciling and executing the tool.
 func (h *Interceptor) HandleExecute(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
