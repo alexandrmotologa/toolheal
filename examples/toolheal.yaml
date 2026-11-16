@@ -1,0 +1,31 @@
+# toolheal runtime configuration
+server:
+  host: "127.0.0.1"
+  port: 7171
+  enable_console: true
+  read_timeout_sec: 15
+  write_timeout_sec: 15
+
+reconciliation:
+  levenshtein_threshold: 0.80
+  jaro_winkler_threshold: 0.82
+  max_edit_distance: 2
+  enable_case_folding: true
+  enable_type_coercion: true
+  enable_enum_snapping: true
+  enable_date_normalization: true
+  enable_default_injection: true
+  enable_envelope_unwrapping: true
+
+circuit_breaker:
+  max_consecutive_failures: 5
+  reset_timeout_ms: 10000
+  backoff_base_ms: 200
+  backoff_max_ms: 3000
+
+telemetry:
+  database_path: "toolheal.db"
+  tokens_saved_per_healing: 2400
+  max_history_items: 5000
+
+tool_schemas: "examples/tool_definitions.json"

@@ -1,0 +1,60 @@
+{"id": "case_01", "tool": "create_user", "arguments": {"user_id": "usr_001", "email": "dev1@corp.com", "role": "admin"}}
+{"id": "case_02", "tool": "create_user", "arguments": {"userId": "usr_002", "userEmail": "dev2@corp.com", "is_active": "true"}}
+{"id": "case_03", "tool": "create_user", "arguments": {"user_id": "usr_003", "user_email": "dev3@corp.com", "role": "user"}}
+{"id": "case_04", "tool": "create_user", "arguments": {"uid": "usr_004", "mail": "dev4@corp.com", "tags": "engineering"}}
+{"id": "case_05", "tool": "create_user", "arguments": {"userId": "usr_005", "userEmail": "dev5@corp.com", "created_at": "15/11/2026"}}
+{"id": "case_06", "tool": "create_user", "arguments": {"usreId": "usr_006", "userEmail": "dev6@corp.com", "role": "GUEST"}}
+{"id": "case_07", "tool": "create_user", "arguments": {"userId": "usr_007", "userEmail": "dev7@corp.com", "tags": "backend, devops, cloud"}}
+{"id": "case_08", "tool": "create_user", "arguments": {"params": {"userId": "usr_008", "userEmail": "dev8@corp.com"}}}
+{"id": "case_09", "tool": "create_user", "arguments": {"user_id": "usr_009", "userEmail": "dev9@corp.com", "createdDate": "today"}}
+{"id": "case_10", "tool": "create_user", "arguments": {"userId": ["usr_010"], "userEmail": "dev10@corp.com", "isActive": "1"}}
+{"id": "case_11", "tool": "process_payment", "arguments": {"customer_id": "cus_101", "amount_cents": "4900", "currency": "usd"}}
+{"id": "case_12", "tool": "process_payment", "arguments": {"customer": "cus_102", "amount": 2500, "capture_now": "true"}}
+{"id": "case_13", "tool": "process_payment", "arguments": {"customerId": "cus_103", "amountCents": "1000.0", "currency": "eur"}}
+{"id": "case_14", "tool": "process_payment", "arguments": {"client_id": "cus_104", "cents": 7500, "descriptor": "SaaS Subscription"}}
+{"id": "case_15", "tool": "process_payment", "arguments": {"customerId": "cus_105", "amount_cents": 3200, "currency": "dollar"}}
+{"id": "case_16", "tool": "process_payment", "arguments": {"customer_id": "cus_106", "amount": "9999", "capture": "false"}}
+{"id": "case_17", "tool": "process_payment", "arguments": {"arguments": {"customerId": "cus_107", "amountCents": 1200}}}
+{"id": "case_18", "tool": "process_payment", "arguments": {"customrId": "cus_108", "amountCents": 4500, "currency": "gbp"}}
+{"id": "case_19", "tool": "process_payment", "arguments": {"customerId": "cus_109", "amountCents": "15000", "currency": "pound"}}
+{"id": "case_20", "tool": "process_payment", "arguments": {"customerId": "cus_110", "amountCents": 500, "auto_capture": "yes"}}
+{"id": "case_21", "tool": "search_database", "arguments": {"q": "langgraph orchestration", "page_size": "25"}}
+{"id": "case_22", "tool": "search_database", "arguments": {"query": "vector embeddings", "limit": 10, "offset": 1}}
+{"id": "case_23", "tool": "search_database", "arguments": {"search": "agent memory patterns", "pageSize": "50", "pageNumber": "3"}}
+{"id": "case_24", "tool": "search_database", "arguments": {"keyword": "sqlite wal mode", "status": "active"}}
+{"id": "case_25", "tool": "search_database", "arguments": {"query": "circuit breaker pattern", "start_date": "2026/11/15"}}
+{"id": "case_26", "tool": "search_database", "arguments": {"search_term": "tool calling benchmarks", "per_page": 15}}
+{"id": "case_27", "tool": "search_database", "arguments": {"qeury": "fuzzy matching algorithms", "limit": "100"}}
+{"id": "case_28", "tool": "search_database", "arguments": {"query": "schema reconciliation", "filter_status": "draft"}}
+{"id": "case_29", "tool": "search_database", "arguments": {"input": {"query": "damerau levenshtein distance"}}}
+{"id": "case_30", "tool": "search_database", "arguments": {"query": "json rpc mcp protocol", "since": "yesterday"}}
+{"id": "case_31", "tool": "create_github_issue", "arguments": {"repo": "alexandrmotologa/toolheal", "title": "Add SSE live telemetry", "priority": "urgent"}}
+{"id": "case_32", "tool": "create_github_issue", "arguments": {"repository": "alexandrmotologa/toolheal", "issue_title": "Fix casing mismatch", "priority": "high"}}
+{"id": "case_33", "tool": "create_github_issue", "arguments": {"project": "alexandrmotologa/toolheal", "subject": "Implement circuit breaker", "labels": "bug"}}
+{"id": "case_34", "tool": "create_github_issue", "arguments": {"repository": "alexandrmotologa/toolheal", "issueTitle": "Support MCP stdio", "assignee": "alexandrmotologa"}}
+{"id": "case_35", "tool": "create_github_issue", "arguments": {"repo_name": "alexandrmotologa/toolheal", "summary": "Optimize memory allocation", "priority": "normal"}}
+{"id": "case_36", "tool": "create_github_issue", "arguments": {"repository": "alexandrmotologa/toolheal", "issueTitle": "Update documentation", "tags": "docs, help-wanted"}}
+{"id": "case_37", "tool": "create_github_issue", "arguments": {"repository": "alexandrmotologa/toolheal", "issueTitle": "Benchmark against failing payloads", "priority": "blocker"}}
+{"id": "case_38", "tool": "create_github_issue", "arguments": {"payload": {"repository": "alexandrmotologa/toolheal", "issueTitle": "Release v1.0.0"}}}
+{"id": "case_39", "tool": "create_github_issue", "arguments": {"repositry": "alexandrmotologa/toolheal", "issueTitle": "Add React 19 console"}}
+{"id": "case_40", "tool": "create_github_issue", "arguments": {"repository": "alexandrmotologa/toolheal", "title": "Refactor router handlers", "priority": "minor"}}
+{"id": "case_41", "tool": "send_slack_notification", "arguments": {"channel_id": "C012345678", "message_text": "Deployment finished successfully"}}
+{"id": "case_42", "tool": "send_slack_notification", "arguments": {"channel": "C098765432", "text": "High memory consumption detected", "urgent": "true"}}
+{"id": "case_43", "tool": "send_slack_notification", "arguments": {"target_channel": "C112233445", "body": "Agent execution halted on 400 error", "is_urgent": "1"}}
+{"id": "case_44", "tool": "send_slack_notification", "arguments": {"channelId": "C556677889", "message": "Failing tool call healed by toolheal", "thread_ts": "1731682800.000100"}}
+{"id": "case_45", "tool": "send_slack_notification", "arguments": {"room": "C998877665", "text": "Tokens saved: 2400"}}
+{"id": "case_46", "tool": "send_slack_notification", "arguments": {"chanelId": "C443322110", "messageText": "Latency is under 1 millisecond"}}
+{"id": "case_47", "tool": "send_slack_notification", "arguments": {"channelId": "C12345", "messageText": "Weekly report summary", "priority": "true"}}
+{"id": "case_48", "tool": "send_slack_notification", "arguments": {"params": {"channelId": "C77777", "messageText": "System check OK"}}}
+{"id": "case_49", "tool": "create_user", "arguments": {"user_id": "usr_049", "email": "lead@agentic.ai", "role": "readonly"}}
+{"id": "case_50", "tool": "create_user", "arguments": {"id": "usr_050", "contact_email": "engineer@agentic.ai", "active": "on"}}
+{"id": "case_51", "tool": "process_payment", "arguments": {"customer_id": "cus_051", "amount": 8900, "currency": "eur"}}
+{"id": "case_52", "tool": "process_payment", "arguments": {"customerId": "cus_052", "amount_cents": "12000", "statement_descriptor": "TOOLHEAL PRO"}}
+{"id": "case_53", "tool": "search_database", "arguments": {"q": "autonomous agents", "count": 10, "offset": 2}}
+{"id": "case_54", "tool": "search_database", "arguments": {"search_term": "sub-millisecond string matching", "limit": 5}}
+{"id": "case_55", "tool": "create_github_issue", "arguments": {"repo": "alexandrmotologa/toolheal", "title": "Zero token overhead in agent loop", "priority": "crit"}}
+{"id": "case_56", "tool": "create_github_issue", "arguments": {"repository": "alexandrmotologa/toolheal", "issue_title": "Fix JSONRPC response schema"}}
+{"id": "case_57", "tool": "send_slack_notification", "arguments": {"channel": "C9000", "msg": "Self-healing tool loop active", "is_urgent": true}}
+{"id": "case_58", "tool": "send_slack_notification", "arguments": {"channel_id": "C9001", "text": "All unit tests pass", "is_urgent": "yes"}}
+{"id": "case_59", "tool": "create_user", "arguments": {"user": "usr_059", "user_email": "ops@system.net", "creation_date": "2026-11-15"}}
+{"id": "case_60", "tool": "process_payment", "arguments": {"client_id": "cus_060", "amount_cents": 19900, "currency": "usd", "capture": "t"}}

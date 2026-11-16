@@ -1,0 +1,219 @@
+[
+  {
+    "name": "create_user",
+    "description": "Provision a new user account with role permissions and notification settings.",
+    "parameters": {
+      "type": "object",
+      "required": ["userId", "userEmail"],
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "Unique identifier for the user.",
+          "aliases": ["user_id", "id", "uid", "user"]
+        },
+        "userEmail": {
+          "type": "string",
+          "format": "email",
+          "description": "Corporate email address.",
+          "aliases": ["email", "user_email", "mail"]
+        },
+        "role": {
+          "type": "string",
+          "description": "Access level granted to the user.",
+          "enum": ["ADMIN", "MEMBER", "GUEST", "READONLY"],
+          "default": "MEMBER"
+        },
+        "isActive": {
+          "type": "boolean",
+          "description": "Whether the user account is active immediately.",
+          "default": true,
+          "aliases": ["is_active", "active", "enabled"]
+        },
+        "createdDate": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Account registration timestamp in ISO-8601 format.",
+          "aliases": ["created_at", "created_date", "creation_date", "date"]
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Organizational tags applied to user profile.",
+          "aliases": ["tag_list", "labels"]
+        }
+      }
+    },
+    "target": {
+      "type": "mock",
+      "endpoint": "/mock/create_user"
+    }
+  },
+  {
+    "name": "process_payment",
+    "description": "Charge a customer payment card or balance for an invoice.",
+    "parameters": {
+      "type": "object",
+      "required": ["customerId", "amountCents"],
+      "properties": {
+        "customerId": {
+          "type": "string",
+          "description": "Stripe or internal customer identifier.",
+          "aliases": ["customer_id", "customer", "client_id", "user_id"]
+        },
+        "amountCents": {
+          "type": "integer",
+          "description": "Transaction amount denominated in cents (integer).",
+          "aliases": ["amount_cents", "amount", "total", "cents"]
+        },
+        "currency": {
+          "type": "string",
+          "description": "Three-letter ISO currency code.",
+          "enum": ["USD", "EUR", "GBP", "JPY", "CAD"],
+          "default": "USD"
+        },
+        "captureNow": {
+          "type": "boolean",
+          "description": "Immediately capture funds instead of authorizing.",
+          "default": true,
+          "aliases": ["capture_now", "capture", "auto_capture"]
+        },
+        "statementDescriptor": {
+          "type": "string",
+          "description": "Customer bank statement descriptor.",
+          "aliases": ["statement_descriptor", "descriptor", "memo"]
+        }
+      }
+    },
+    "target": {
+      "type": "mock",
+      "endpoint": "/mock/process_payment"
+    }
+  },
+  {
+    "name": "search_database",
+    "description": "Execute indexed queries over catalog records with pagination and date filters.",
+    "parameters": {
+      "type": "object",
+      "required": ["query"],
+      "properties": {
+        "query": {
+          "type": "string",
+          "description": "Full-text search query term.",
+          "aliases": ["q", "search", "search_term", "keyword"]
+        },
+        "pageSize": {
+          "type": "integer",
+          "description": "Number of results returned per page.",
+          "default": 20,
+          "aliases": ["page_size", "limit", "per_page", "count"]
+        },
+        "pageNumber": {
+          "type": "integer",
+          "description": "One-based page index.",
+          "default": 1,
+          "aliases": ["page_number", "page", "offset"]
+        },
+        "filterStatus": {
+          "type": "string",
+          "description": "Document lifecycle status filter.",
+          "enum": ["ACTIVE", "ARCHIVED", "DRAFT"],
+          "aliases": ["filter_status", "status"]
+        },
+        "startDate": {
+          "type": "string",
+          "format": "date",
+          "description": "Earliest record date in YYYY-MM-DD format.",
+          "aliases": ["start_date", "from_date", "since"]
+        }
+      }
+    },
+    "target": {
+      "type": "mock",
+      "endpoint": "/mock/search_database"
+    }
+  },
+  {
+    "name": "create_github_issue",
+    "description": "Create an issue in a GitHub repository with tags and assignees.",
+    "parameters": {
+      "type": "object",
+      "required": ["repository", "issueTitle"],
+      "properties": {
+        "repository": {
+          "type": "string",
+          "description": "Target repository in owner/repo format.",
+          "aliases": ["repo", "project", "repo_name"]
+        },
+        "issueTitle": {
+          "type": "string",
+          "description": "Short summary title of the issue.",
+          "aliases": ["issue_title", "title", "subject", "summary"]
+        },
+        "issueBody": {
+          "type": "string",
+          "description": "Detailed markdown issue description.",
+          "aliases": ["issue_body", "body", "description", "content"]
+        },
+        "assignees": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "GitHub usernames to assign.",
+          "aliases": ["assignee_list", "assigned_to", "assignee"]
+        },
+        "labels": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Repository issue labels.",
+          "aliases": ["label_list", "tags"]
+        },
+        "priority": {
+          "type": "string",
+          "description": "Triage urgency rank.",
+          "enum": ["CRITICAL", "HIGH", "MEDIUM", "LOW"],
+          "default": "MEDIUM"
+        }
+      }
+    },
+    "target": {
+      "type": "mock",
+      "endpoint": "/mock/create_github_issue"
+    }
+  },
+  {
+    "name": "send_slack_notification",
+    "description": "Dispatch formatted chat message to a Slack channel or thread.",
+    "parameters": {
+      "type": "object",
+      "required": ["channelId", "messageText"],
+      "properties": {
+        "channelId": {
+          "type": "string",
+          "description": "Slack channel identifier (e.g. C012345678).",
+          "aliases": ["channel_id", "channel", "target_channel"]
+        },
+        "messageText": {
+          "type": "string",
+          "description": "Message body in mrkdwn format.",
+          "aliases": ["message_text", "message", "text", "body"]
+        },
+        "isUrgent": {
+          "type": "boolean",
+          "description": "Flag message as high priority alert.",
+          "default": false,
+          "aliases": ["is_urgent", "urgent", "priority"]
+        },
+        "threadTimestamp": {
+          "type": "string",
+          "description": "Parent message timestamp for replying in thread.",
+          "aliases": ["thread_ts", "thread_id", "parent_ts"]
+        }
+      }
+    },
+    "target": {
+      "type": "mock",
+      "endpoint": "/mock/send_slack_notification"
+    }
+  }
+]

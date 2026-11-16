@@ -1,0 +1,21 @@
+# Binaries and executables
+/toolheal
+/toolheal.exe
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Database files
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+
+# Node dependencies and build artifacts
+web/node_modules/
+web/dist/
+
+# Test coverage and scratch
+coverage.out
+*.test
